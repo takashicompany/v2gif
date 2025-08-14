@@ -853,6 +853,7 @@
                                 message.includes('Error while filtering') ||
                                 message.includes('Conversion failed') ||
                                 message.includes('failed to execute')) {
+                                appendLog('[ERROR DETECTED] ' + message);
                                 ffmpegError = message;
                             }
                         }
@@ -1550,11 +1551,15 @@
                     
                     // FFmpeg実行前にエラーをリセット
                     ffmpegError = null;
+                    appendLog('[INFO] Starting FFmpeg conversion...');
                     
                     await ffmpeg.run(...ffmpegArgs);
                     
+                    appendLog('[INFO] FFmpeg finished. Error status: ' + (ffmpegError ? 'ERROR' : 'OK'));
+                    
                     // エラーチェック
                     if (ffmpegError) {
+                        appendLog('[ERROR] Throwing error: ' + ffmpegError);
                         throw new Error(ffmpegError);
                     }
                     
@@ -1639,6 +1644,7 @@
                     
                 } catch (error) {
                     console.error('変換エラー:', error);
+                    appendLog('[CATCH BLOCK] Error caught: ' + error.message);
                     
                     // メモリ不足エラーの検出
                     const errorMessage = error.message || error.toString();
@@ -1651,7 +1657,10 @@
                         errorMessage.includes('failed to execute') ||
                         errorMessage.includes('Error while filtering');
                     
+                    appendLog('[CATCH BLOCK] Is memory error: ' + isMemoryError);
+                    
                     if (isMemoryError) {
+                        appendLog('[CATCH BLOCK] Showing memory error dialog...');
                         showError('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。', {
                             code: 'MEMORY_ERROR',
                             name: 'メモリ不足',

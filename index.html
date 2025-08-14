@@ -513,6 +513,24 @@
             </div>
         </div>
 
+        <div class="settings" style="margin-top: 20px;">
+            <div class="setting-group">
+                <label for="startTimeInput">開始時間 (秒)</label>
+                <input type="number" id="startTimeInput" value="0" min="0" step="0.1" placeholder="例: 0">
+                <span class="hint">動画の開始位置</span>
+            </div>
+            <div class="setting-group">
+                <label for="endTimeInput">終了時間 (秒)</label>
+                <input type="number" id="endTimeInput" value="" min="0" step="0.1" placeholder="例: 10">
+                <span class="hint">空欄の場合は最後まで</span>
+            </div>
+            <div class="setting-group">
+                <label for="durationDisplay">切り出し時間</label>
+                <input type="text" id="durationDisplay" value="全体" disabled style="background-color: #f0f0f0;">
+                <span class="hint" id="videoDurationHint">動画の長さ: 未確認</span>
+            </div>
+        </div>
+
         <div class="button-group">
             <button class="btn btn-primary" id="convertBtn" disabled>
                 GIFに変換
@@ -614,6 +632,10 @@
             const heightGroup = document.getElementById('heightGroup');
             const widthCalculated = document.getElementById('widthCalculated');
             const heightCalculated = document.getElementById('heightCalculated');
+            const startTimeInput = document.getElementById('startTimeInput');
+            const endTimeInput = document.getElementById('endTimeInput');
+            const durationDisplay = document.getElementById('durationDisplay');
+            const videoDurationHint = document.getElementById('videoDurationHint');
 
             // FFmpeg初期化（真のシングルスレッド版：@ffmpeg/core-st使用）
             async function initFFmpeg() {
@@ -713,7 +735,8 @@
             let videoMetadata = {
                 width: 600,
                 height: 400,
-                aspectRatio: 1.5
+                aspectRatio: 1.5,
+                duration: 0
             };
             
             // サイズモードの切り替え
@@ -786,6 +809,25 @@
                     calculateWidthFromHeight();
                 }
             });
+            
+            // 時間範囲の変更を監視
+            function updateDurationDisplay() {
+                const startTime = parseFloat(startTimeInput.value) || 0;
+                const endTime = parseFloat(endTimeInput.value) || videoMetadata.duration;
+                
+                if (endTime && endTime > startTime) {
+                    const duration = endTime - startTime;
+                    durationDisplay.value = `${duration.toFixed(1)}秒 (${startTime.toFixed(1)}秒 〜 ${endTime.toFixed(1)}秒)`;
+                } else if (!endTimeInput.value && videoMetadata.duration) {
+                    const duration = videoMetadata.duration - startTime;
+                    durationDisplay.value = `${duration.toFixed(1)}秒 (${startTime.toFixed(1)}秒 〜 最後まで)`;
+                } else {
+                    durationDisplay.value = '全体';
+                }
+            }
+            
+            startTimeInput.addEventListener('input', updateDurationDisplay);
+            endTimeInput.addEventListener('input', updateDurationDisplay);
 
             // 進捗表示
             function updateProgress(percent, text) {
@@ -854,11 +896,13 @@
                             // 動画の実際のサイズを取得
                             const videoWidth = video.videoWidth;
                             const videoHeight = video.videoHeight;
+                            const videoDuration = video.duration;
                             
                             // メタデータを保存
                             videoMetadata.width = videoWidth;
                             videoMetadata.height = videoHeight;
                             videoMetadata.aspectRatio = videoWidth / videoHeight;
+                            videoMetadata.duration = videoDuration;
                             
                             // 入力フィールドに設定
                             widthInput.value = videoWidth.toString();
@@ -867,7 +911,17 @@
                             // モードに応じて表示を更新
                             updateSizeMode();
                             
-                            fileInfo.textContent += ` | サイズ: ${videoWidth}x${videoHeight}`;
+                            fileInfo.textContent += ` | サイズ: ${videoWidth}x${videoHeight} | 長さ: ${videoDuration.toFixed(1)}秒`;
+                            
+                            // 動画の長さを表示
+                            videoDurationHint.textContent = `動画の長さ: ${videoDuration.toFixed(1)}秒`;
+                            
+                            // 終了時間のデフォルト値を設定
+                            endTimeInput.max = videoDuration.toFixed(1);
+                            startTimeInput.max = videoDuration.toFixed(1);
+                            
+                            // 切り出し時間を更新
+                            updateDurationDisplay();
                             
                             resolve();
                         };
@@ -960,13 +1014,33 @@
                     
                     const scale = `${width}:${height}`;
                     
+                    // 時間範囲の設定
+                    const startTime = parseFloat(startTimeInput.value) || 0;
+                    const endTime = parseFloat(endTimeInput.value) || null;
+                    
+                    // FFmpegコマンドの構築
+                    const ffmpegArgs = [];
+                    
+                    // 開始時間の指定（-ss は入力前に指定することで高速化）
+                    if (startTime > 0) {
+                        ffmpegArgs.push('-ss', startTime.toString());
+                    }
+                    
+                    // 入力ファイル
+                    ffmpegArgs.push('-i', 'input.mp4');
+                    
+                    // 終了時間の指定（durationとして）
+                    if (endTime !== null && endTime > startTime) {
+                        const duration = endTime - startTime;
+                        ffmpegArgs.push('-t', duration.toString());
+                    }
+                    
                     // ステップ2: パレット生成とGIF変換
                     updateStep(2, 'active');
                     updateProgress(30, 'パレットを生成中...');
                     
-                    // 1コマンドでGIFとパレットプレビューを同時生成
-                    await ffmpeg.run(
-                        '-i', 'input.mp4',
+                    // フィルターとその他のオプションを追加
+                    ffmpegArgs.push(
                         '-filter_complex',
                         `[0:v]fps=${fps},scale=${scale}:flags=lanczos,split[s0][s1];` +
                         `[s0]palettegen[p];` +
@@ -976,6 +1050,10 @@
                         '-map', '[gif]', '-y', 'output.gif',
                         '-map', '[palette_preview]', '-frames:v', '1', '-y', 'palette_preview.png'
                     );
+                    
+                    // 1コマンドでGIFとパレットプレビューを同時生成
+                    console.log('FFmpeg command:', ffmpegArgs.join(' '));
+                    await ffmpeg.run(...ffmpegArgs);
                     
                     updateStep(2, 'completed');
                     
@@ -1096,6 +1174,10 @@
                 heightInput.value = '400';
                 fpsInput.value = '30';
                 sizeMode.value = 'both';
+                startTimeInput.value = '0';
+                endTimeInput.value = '';
+                durationDisplay.value = '全体';
+                videoDurationHint.textContent = '動画の長さ: 未確認';
                 updateSizeMode();
             });
         })();

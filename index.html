@@ -783,6 +783,7 @@
             let isProcessing = false;
             let selectedFile = null;
             let outputBlob = null;
+            let ffmpegError = null; // FFmpegのエラーを記録
 
             // DOM要素
             const uploadArea = document.getElementById('uploadArea');
@@ -846,6 +847,14 @@
                         if (message) {
                             console.log(message);
                             appendLog(message);
+                            
+                            // エラーメッセージを検出
+                            if (message.includes('Out of memory') || 
+                                message.includes('Error while filtering') ||
+                                message.includes('Conversion failed') ||
+                                message.includes('failed to execute')) {
+                                ffmpegError = message;
+                            }
                         }
                     });
                     
@@ -868,13 +877,21 @@
                 logsContent.scrollTop = logsContent.scrollHeight;
             }
 
-            // エラー表示
+            // エラー表示（ダイアログ形式）
             function showError(message, errorObj = null) {
                 const errorText = document.getElementById('errorText');
                 const errorCode = document.getElementById('errorCode');
                 
                 // メモリエラーの場合は特別なメッセージ
                 if (errorObj && errorObj.code === 'MEMORY_ERROR') {
+                    // alertダイアログで表示
+                    alert('メモリが不足しています。\n\n' +
+                          '以下の方法で解決できます：\n' +
+                          '• 動画の解像度を下げる（例：600×400以下）\n' +
+                          '• 変換する時間範囲を短くする（例：10秒以内）\n' +
+                          '• FPSを下げる（例：15fps以下）');
+                    
+                    // エラーメッセージエリアにも表示
                     errorText.innerHTML = `
                         <strong>メモリが不足しています</strong><br>
                         <span style="font-size: 14px;">以下の方法で解決できます：</span><br>
@@ -1530,7 +1547,27 @@
                     
                     // 1コマンドでGIFとパレットプレビューを同時生成
                     console.log('FFmpeg command:', ffmpegArgs.join(' '));
+                    
+                    // FFmpeg実行前にエラーをリセット
+                    ffmpegError = null;
+                    
                     await ffmpeg.run(...ffmpegArgs);
+                    
+                    // エラーチェック
+                    if (ffmpegError) {
+                        throw new Error(ffmpegError);
+                    }
+                    
+                    // output.gifの存在とサイズをチェック
+                    const files = ffmpeg.FS('readdir', '/');
+                    if (!files.includes('output.gif')) {
+                        throw new Error('Out of memory: GIF file was not created');
+                    }
+                    
+                    const outputStat = ffmpeg.FS('stat', '/output.gif');
+                    if (outputStat.size === 0) {
+                        throw new Error('Out of memory: GIF file is empty');
+                    }
                     
                     updateStep(2, 'completed');
                     

@@ -616,38 +616,6 @@
             <span class="error-close" onclick="closeError()">×</span>
         </div>
 
-        <div class="settings">
-            <div class="size-mode-selector">
-                <label for="sizeMode" style="display: block; margin-bottom: 8px; color: #555; font-size: 14px; font-weight: 500;">
-                    サイズ指定方法
-                </label>
-                <select id="sizeMode">
-                    <option value="both">幅と高さを指定する</option>
-                    <option value="width">幅を指定する（縦横比維持）</option>
-                    <option value="height">高さを指定する（縦横比維持）</option>
-                </select>
-            </div>
-            
-            <div class="size-inputs">
-                <div class="size-input-group" id="widthGroup">
-                    <label for="widthInput">幅 (px)</label>
-                    <input type="number" id="widthInput" value="600" placeholder="例: 600" min="1">
-                    <span class="calculated-value" id="widthCalculated" style="display: none;"></span>
-                </div>
-                <div class="size-input-group" id="heightGroup">
-                    <label for="heightInput">高さ (px)</label>
-                    <input type="number" id="heightInput" value="400" placeholder="例: 400" min="1">
-                    <span class="calculated-value" id="heightCalculated" style="display: none;"></span>
-                </div>
-            </div>
-            
-            <div class="setting-group" style="margin-top: 20px;">
-                <label for="fpsInput">FPS (フレームレート)</label>
-                <input type="number" id="fpsInput" value="30" min="1" max="60" placeholder="例: 30">
-                <span class="hint">デフォルト: 30</span>
-            </div>
-        </div>
-
         <div class="video-preview-container" id="videoPreviewContainer">
             <div class="video-preview-title">📹 動画プレビュー & 切り出し範囲選択</div>
             <div class="video-canvas-wrapper" id="canvasWrapper">
@@ -699,6 +667,38 @@
                 <label for="durationDisplay">切り出し時間</label>
                 <input type="text" id="durationDisplay" value="全体" disabled style="background-color: #f0f0f0;">
                 <span class="hint" id="videoDurationHint">動画の長さ: 未確認</span>
+            </div>
+        </div>
+
+        <div class="settings">
+            <div class="size-mode-selector">
+                <label for="sizeMode" style="display: block; margin-bottom: 8px; color: #555; font-size: 14px; font-weight: 500;">
+                    サイズ指定方法
+                </label>
+                <select id="sizeMode">
+                    <option value="both">幅と高さを指定する</option>
+                    <option value="width">幅を指定する（縦横比維持）</option>
+                    <option value="height">高さを指定する（縦横比維持）</option>
+                </select>
+            </div>
+            
+            <div class="size-inputs">
+                <div class="size-input-group" id="widthGroup">
+                    <label for="widthInput">幅 (px)</label>
+                    <input type="number" id="widthInput" value="600" placeholder="例: 600" min="1">
+                    <span class="calculated-value" id="widthCalculated" style="display: none;"></span>
+                </div>
+                <div class="size-input-group" id="heightGroup">
+                    <label for="heightInput">高さ (px)</label>
+                    <input type="number" id="heightInput" value="400" placeholder="例: 400" min="1">
+                    <span class="calculated-value" id="heightCalculated" style="display: none;"></span>
+                </div>
+            </div>
+            
+            <div class="setting-group" style="margin-top: 20px;">
+                <label for="fpsInput">FPS (フレームレート)</label>
+                <input type="number" id="fpsInput" value="30" min="1" max="60" placeholder="例: 30">
+                <span class="hint">デフォルト: 30</span>
             </div>
         </div>
 

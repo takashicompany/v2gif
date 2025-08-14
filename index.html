@@ -616,7 +616,7 @@
             <span class="error-close" onclick="closeError()">×</span>
         </div>
 
-        <div class="video-preview-container" id="videoPreviewContainer">
+        <div class="video-preview-container" id="videoPreviewContainer" style="display: none;">
             <div class="video-preview-title">📹 動画プレビュー & 切り出し範囲選択</div>
             <div class="video-canvas-wrapper" id="canvasWrapper">
                 <video id="videoPreview" class="video-canvas" controls></video>
@@ -652,7 +652,7 @@
             </div>
         </div>
         
-        <div class="settings" style="margin-top: 20px;">
+        <div class="settings" id="timeRangeSettings" style="margin-top: 20px; display: none;">
             <div class="setting-group">
                 <label for="startTimeInput">開始時間 (秒)</label>
                 <input type="number" id="startTimeInput" value="0" min="0" step="0.1" placeholder="例: 0">
@@ -670,7 +670,7 @@
             </div>
         </div>
 
-        <div class="settings">
+        <div class="settings" id="sizeAndFpsSettings" style="display: none;">
             <div class="size-mode-selector">
                 <label for="sizeMode" style="display: block; margin-bottom: 8px; color: #555; font-size: 14px; font-weight: 500;">
                     サイズ指定方法
@@ -702,7 +702,7 @@
             </div>
         </div>
 
-        <div class="button-group">
+        <div class="button-group" id="buttonGroup" style="display: none;">
             <button class="btn btn-primary" id="convertBtn" disabled>
                 GIFに変換
             </button>
@@ -1262,9 +1262,12 @@
                 const previewUrl = URL.createObjectURL(file);
                 console.log('Preview URL created:', previewUrl);
                 
-                // 動画プレビューを表示
+                // UI要素を表示
                 videoPreview.src = previewUrl;
                 videoPreviewContainer.style.display = 'block';
+                document.getElementById('timeRangeSettings').style.display = 'block';
+                document.getElementById('sizeAndFpsSettings').style.display = 'block';
+                document.getElementById('buttonGroup').style.display = 'flex';
                 
                 // 動画を再生可能な状態にする
                 videoPreview.load();
@@ -1553,7 +1556,11 @@
                 processSteps.style.display = 'none';
                 palettePreview.style.display = 'none';
                 fsInfo.style.display = 'none';
+                // UI要素を非表示
                 videoPreviewContainer.style.display = 'none';
+                document.getElementById('timeRangeSettings').style.display = 'none';
+                document.getElementById('sizeAndFpsSettings').style.display = 'none';
+                document.getElementById('buttonGroup').style.display = 'none';
                 convertBtn.disabled = true;
                 
                 // プレビューURLをリボーク

@@ -921,6 +921,13 @@
                 duration: 0
             };
             
+            // 現在の基準サイズ（切り出し範囲または元動画）
+            let currentBaseSize = {
+                width: 600,
+                height: 400,
+                aspectRatio: 1.5
+            };
+            
             // 切り出し範囲の情報
             let cropData = {
                 enabled: false,
@@ -970,10 +977,10 @@
             // 幅から高さを計算
             function calculateHeightFromWidth() {
                 const width = parseInt(widthInput.value);
-                if (!isNaN(width) && width > 0 && videoMetadata.aspectRatio) {
-                    const calculatedHeight = Math.round(width / videoMetadata.aspectRatio);
+                if (!isNaN(width) && width > 0 && currentBaseSize.aspectRatio) {
+                    const calculatedHeight = Math.round(width / currentBaseSize.aspectRatio);
                     heightInput.value = calculatedHeight;
-                    heightCalculated.textContent = `縦横比 ${videoMetadata.aspectRatio.toFixed(2)} より自動計算`;
+                    heightCalculated.textContent = `縦横比 ${currentBaseSize.aspectRatio.toFixed(2)} より自動計算`;
                     heightCalculated.style.display = 'block';
                 }
             }
@@ -981,10 +988,10 @@
             // 高さから幅を計算
             function calculateWidthFromHeight() {
                 const height = parseInt(heightInput.value);
-                if (!isNaN(height) && height > 0 && videoMetadata.aspectRatio) {
-                    const calculatedWidth = Math.round(height * videoMetadata.aspectRatio);
+                if (!isNaN(height) && height > 0 && currentBaseSize.aspectRatio) {
+                    const calculatedWidth = Math.round(height * currentBaseSize.aspectRatio);
                     widthInput.value = calculatedWidth;
-                    widthCalculated.textContent = `縦横比 ${videoMetadata.aspectRatio.toFixed(2)} より自動計算`;
+                    widthCalculated.textContent = `縦横比 ${currentBaseSize.aspectRatio.toFixed(2)} より自動計算`;
                     widthCalculated.style.display = 'block';
                 }
             }
@@ -1054,10 +1061,26 @@
                 cropData.y = 0;
                 cropData.width = 0;
                 cropData.height = 0;
-                updateCropInputs();
+                
+                // 基準サイズを元動画に戻す
+                currentBaseSize.width = videoMetadata.width;
+                currentBaseSize.height = videoMetadata.height;
+                currentBaseSize.aspectRatio = videoMetadata.aspectRatio;
+                
+                // サイズ入力フィールドを元に戻す
+                widthInput.value = currentBaseSize.width;
+                heightInput.value = currentBaseSize.height;
+                
+                // 切り出し範囲の入力フィールドをクリア
+                cropX.value = 0;
+                cropY.value = 0;
+                cropWidth.value = 0;
+                cropHeight.value = 0;
+                
                 selectionBox.style.display = 'none';
                 drawOverlay();
                 disableCropMode();
+                updateSizeMode();
             }
             
             function disableCropMode() {
@@ -1145,6 +1168,20 @@
                 cropY.value = Math.round(cropData.y);
                 cropWidth.value = Math.round(cropData.width);
                 cropHeight.value = Math.round(cropData.height);
+                
+                // 切り出し範囲が指定されたら、そのサイズを基準にする
+                if (cropData.width > 0 && cropData.height > 0) {
+                    currentBaseSize.width = Math.round(cropData.width);
+                    currentBaseSize.height = Math.round(cropData.height);
+                    currentBaseSize.aspectRatio = cropData.width / cropData.height;
+                    
+                    // サイズ入力フィールドを更新
+                    widthInput.value = currentBaseSize.width;
+                    heightInput.value = currentBaseSize.height;
+                    
+                    // モードに応じて再計算
+                    updateSizeMode();
+                }
             }
             
             // 入力フィールドからの更新
@@ -1289,6 +1326,11 @@
                         videoMetadata.aspectRatio = videoWidth / videoHeight;
                         videoMetadata.duration = videoDuration;
                         
+                        // 現在の基準サイズを設定
+                        currentBaseSize.width = videoWidth;
+                        currentBaseSize.height = videoHeight;
+                        currentBaseSize.aspectRatio = videoWidth / videoHeight;
+                        
                         // 入力フィールドに設定
                         widthInput.value = videoWidth.toString();
                         heightInput.value = videoHeight.toString();
@@ -1323,7 +1365,10 @@
                         // エラーの場合はデフォルト値を使用
                         console.log('プレビュー動画のメタデータ取得失敗、デフォルト値を使用');
                         widthInput.value = '600';
-                        heightInput.value = '-1';
+                        heightInput.value = '400';
+                        currentBaseSize.width = 600;
+                        currentBaseSize.height = 400;
+                        currentBaseSize.aspectRatio = 1.5;
                         resolve();
                     };
                     

@@ -765,6 +765,7 @@
             <div class="result-title">✨ 変換完了！</div>
             <div class="result-content">
                 <img id="resultGif" alt="変換されたGIF">
+                <div id="resultFileSize" style="margin: 10px 0; color: #666; font-size: 14px;"></div>
                 <button class="btn btn-primary" id="downloadBtn">
                     ダウンロード
                 </button>
@@ -797,6 +798,7 @@
             const resultContainer = document.getElementById('resultContainer');
             const resultGif = document.getElementById('resultGif');
             const downloadBtn = document.getElementById('downloadBtn');
+            const resultFileSize = document.getElementById('resultFileSize');
             const widthInput = document.getElementById('widthInput');
             const heightInput = document.getElementById('heightInput');
             const fpsInput = document.getElementById('fpsInput');
@@ -1568,12 +1570,13 @@
                     resultGif.src = url;
                     resultContainer.style.display = 'block';
                     
+                    // ファイルサイズをMB単位で表示
+                    const gifSizeMB = (data.length / 1024 / 1024).toFixed(2);
+                    resultFileSize.textContent = `ファイルサイズ: ${gifSizeMB} MB`;
+                    console.log(`GIFサイズ: ${gifSizeMB} MB`);
+                    
                     updateStep(4, 'completed');
                     updateProgress(100, '完了！');
-                    
-                    // GIFファイル情報表示
-                    const gifSize = (data.length / 1024 / 1024).toFixed(2);
-                    console.log(`GIFサイズ: ${gifSize} MB`);
                     
                     // クリーンアップ
                     try {

@@ -1176,8 +1176,8 @@
                 }
             }
             
-            // 動画のメタデータ読み込み時にオーバーレイをリサイズ
-            videoPreview.addEventListener('loadedmetadata', () => {
+            // 動画のサイズ変更時にオーバーレイをリサイズ
+            videoPreview.addEventListener('resize', () => {
                 const rect = videoPreview.getBoundingClientRect();
                 overlayCanvas.style.width = rect.width + 'px';
                 overlayCanvas.style.height = rect.height + 'px';
@@ -1247,80 +1247,72 @@
                 fileInfo.textContent = `選択されたファイル: ${file.name} (${fileSizeMB.toFixed(2)} MB)`;
                 fileInfo.style.display = 'block';
                 
-                // 動画プレビューを表示
-                const url = URL.createObjectURL(file);
-                videoPreview.src = url;
-                videoPreviewContainer.style.display = 'block';
-                
                 if (fileSizeMB > 10) {
                     fileInfo.textContent += ' ⚠️ 大きいファイルのため、変換に時間がかかります';
                 }
                 
-                // 動画のメタデータを取得してサイズを自動設定
-                try {
-                    const video = document.createElement('video');
-                    video.preload = 'metadata';
+                // 動画プレビュー用のURLを作成（一度だけ）
+                const previewUrl = URL.createObjectURL(file);
+                
+                // 動画プレビューを表示
+                videoPreview.src = previewUrl;
+                videoPreviewContainer.style.display = 'block';
+                
+                // プレビュー動画のメタデータを取得
+                await new Promise((resolve) => {
+                    videoPreview.onloadedmetadata = () => {
+                        // 動画の実際のサイズを取得
+                        const videoWidth = videoPreview.videoWidth;
+                        const videoHeight = videoPreview.videoHeight;
+                        const videoDuration = videoPreview.duration;
+                        
+                        // メタデータを保存
+                        videoMetadata.width = videoWidth;
+                        videoMetadata.height = videoHeight;
+                        videoMetadata.aspectRatio = videoWidth / videoHeight;
+                        videoMetadata.duration = videoDuration;
+                        
+                        // 入力フィールドに設定
+                        widthInput.value = videoWidth.toString();
+                        heightInput.value = videoHeight.toString();
+                        
+                        // モードに応じて表示を更新
+                        updateSizeMode();
+                        
+                        fileInfo.textContent = `選択されたファイル: ${file.name} (${fileSizeMB.toFixed(2)} MB) | サイズ: ${videoWidth}x${videoHeight} | 長さ: ${videoDuration.toFixed(1)}秒`;
+                        
+                        // 動画の長さを表示
+                        videoDurationHint.textContent = `動画の長さ: ${videoDuration.toFixed(1)}秒`;
+                        
+                        // 終了時間のデフォルト値を設定
+                        endTimeInput.max = videoDuration.toFixed(1);
+                        startTimeInput.max = videoDuration.toFixed(1);
+                        
+                        // 切り出し時間を更新
+                        updateDurationDisplay();
+                        
+                        // オーバーレイキャンバスのサイズを調整
+                        const rect = videoPreview.getBoundingClientRect();
+                        overlayCanvas.style.width = rect.width + 'px';
+                        overlayCanvas.style.height = rect.height + 'px';
+                        drawOverlay();
+                        
+                        resolve();
+                    };
                     
-                    await new Promise((resolve, reject) => {
-                        video.onloadedmetadata = () => {
-                            // 動画の実際のサイズを取得
-                            const videoWidth = video.videoWidth;
-                            const videoHeight = video.videoHeight;
-                            const videoDuration = video.duration;
-                            
-                            // メタデータを保存
-                            videoMetadata.width = videoWidth;
-                            videoMetadata.height = videoHeight;
-                            videoMetadata.aspectRatio = videoWidth / videoHeight;
-                            videoMetadata.duration = videoDuration;
-                            
-                            // 入力フィールドに設定
-                            widthInput.value = videoWidth.toString();
-                            heightInput.value = videoHeight.toString();
-                            
-                            // モードに応じて表示を更新
-                            updateSizeMode();
-                            
-                            fileInfo.textContent += ` | サイズ: ${videoWidth}x${videoHeight} | 長さ: ${videoDuration.toFixed(1)}秒`;
-                            
-                            // 動画の長さを表示
-                            videoDurationHint.textContent = `動画の長さ: ${videoDuration.toFixed(1)}秒`;
-                            
-                            // 終了時間のデフォルト値を設定
-                            endTimeInput.max = videoDuration.toFixed(1);
-                            startTimeInput.max = videoDuration.toFixed(1);
-                            
-                            // 切り出し時間を更新
-                            updateDurationDisplay();
-                            
-                            resolve();
-                        };
-                        
-                        video.onerror = () => {
-                            // エラーの場合はデフォルト値を使用
-                            console.log('メタデータ取得失敗、デフォルト値を使用');
-                            widthInput.value = '600';
-                            heightInput.value = '-1';
-                            resolve();
-                        };
-                        
-                        // 動画ファイルのURLを作成
-                        const url = URL.createObjectURL(file);
-                        video.src = url;
-                        
-                        // タイムアウト設定
-                        setTimeout(() => {
-                            URL.revokeObjectURL(url);
-                            resolve();
-                        }, 5000);
-                    });
+                    videoPreview.onerror = () => {
+                        // エラーの場合はデフォルト値を使用
+                        console.log('プレビュー動画のメタデータ取得失敗、デフォルト値を使用');
+                        widthInput.value = '600';
+                        heightInput.value = '-1';
+                        resolve();
+                    };
                     
-                } catch (error) {
-                    console.error('メタデータ取得エラー:', error);
-                    // エラーの場合はデフォルト値
-                    widthInput.value = '600';
-                    heightInput.value = '-1';
-                }
+                    // タイムアウト設定
+                    setTimeout(() => {
+                        resolve();
+                    }, 5000);
+                });
                 
                 convertBtn.disabled = false;
             }
@@ -1547,6 +1539,12 @@
                 fsInfo.style.display = 'none';
                 videoPreviewContainer.style.display = 'none';
                 convertBtn.disabled = true;
+                
+                // プレビューURLをリボーク
+                if (videoPreview.src) {
+                    URL.revokeObjectURL(videoPreview.src);
+                    videoPreview.src = '';
+                }
                 
                 // 切り出し設定をリセット
                 cropData = {

@@ -1674,11 +1674,14 @@
 
             // ダウンロード
             downloadBtn.addEventListener('click', () => {
-                if (outputBlob) {
+                if (outputBlob && selectedFile) {
                     const url = URL.createObjectURL(outputBlob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'output.gif';
+                    // 元のファイル名から拡張子を.gifに変更
+                    const originalName = selectedFile.name;
+                    const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+                    a.download = nameWithoutExt + '.gif';
                     a.click();
                     URL.revokeObjectURL(url);
                 }

@@ -454,6 +454,139 @@
             color: #0066cc;
             font-family: 'Courier New', monospace;
         }
+        
+        .video-preview-container {
+            display: none;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+        
+        .video-preview-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .video-canvas-wrapper {
+            position: relative;
+            display: inline-block;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: crosshair;
+            margin-bottom: 15px;
+        }
+        
+        .video-canvas {
+            display: block;
+            max-width: 100%;
+            background: #000;
+        }
+        
+        .selection-box {
+            position: absolute;
+            border: 2px dashed #667eea;
+            background: rgba(102, 126, 234, 0.2);
+            pointer-events: none;
+            display: none;
+        }
+        
+        .selection-handles {
+            display: none;
+        }
+        
+        .selection-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #667eea;
+            border: 2px solid white;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        
+        .selection-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+        .selection-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+        .selection-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+        .selection-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+        
+        .crop-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .crop-input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .crop-input-group label {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .crop-input-group input {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .crop-button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            background: #f0f0f0;
+            color: #333;
+            transition: background 0.2s;
+        }
+        
+        .crop-button:hover {
+            background: #e0e0e0;
+        }
+        
+        .crop-button.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .video-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .play-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .play-button:hover {
+            background: #5568d3;
+        }
+        
+        .time-display {
+            font-size: 14px;
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
     </style>
 </head>
 <body>
@@ -513,6 +646,42 @@
             </div>
         </div>
 
+        <div class="video-preview-container" id="videoPreviewContainer">
+            <div class="video-preview-title">📹 動画プレビュー & 切り出し範囲選択</div>
+            <div class="video-canvas-wrapper" id="canvasWrapper">
+                <video id="videoPreview" class="video-canvas" controls></video>
+                <canvas id="overlayCanvas" class="video-canvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+                <div class="selection-box" id="selectionBox">
+                    <div class="selection-handles" id="selectionHandles">
+                        <div class="selection-handle nw" data-handle="nw"></div>
+                        <div class="selection-handle ne" data-handle="ne"></div>
+                        <div class="selection-handle sw" data-handle="sw"></div>
+                        <div class="selection-handle se" data-handle="se"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="crop-controls">
+                <button class="crop-button" id="enableCropBtn">✂️ 切り出し範囲を選択</button>
+                <button class="crop-button" id="resetCropBtn" style="display: none;">リセット</button>
+                <div class="crop-input-group">
+                    <label>X:</label>
+                    <input type="number" id="cropX" value="0" min="0" disabled>
+                </div>
+                <div class="crop-input-group">
+                    <label>Y:</label>
+                    <input type="number" id="cropY" value="0" min="0" disabled>
+                </div>
+                <div class="crop-input-group">
+                    <label>幅:</label>
+                    <input type="number" id="cropWidth" value="0" min="1" disabled>
+                </div>
+                <div class="crop-input-group">
+                    <label>高さ:</label>
+                    <input type="number" id="cropHeight" value="0" min="1" disabled>
+                </div>
+            </div>
+        </div>
+        
         <div class="settings" style="margin-top: 20px;">
             <div class="setting-group">
                 <label for="startTimeInput">開始時間 (秒)</label>
@@ -636,6 +805,17 @@
             const endTimeInput = document.getElementById('endTimeInput');
             const durationDisplay = document.getElementById('durationDisplay');
             const videoDurationHint = document.getElementById('videoDurationHint');
+            const videoPreviewContainer = document.getElementById('videoPreviewContainer');
+            const videoPreview = document.getElementById('videoPreview');
+            const overlayCanvas = document.getElementById('overlayCanvas');
+            const canvasWrapper = document.getElementById('canvasWrapper');
+            const selectionBox = document.getElementById('selectionBox');
+            const enableCropBtn = document.getElementById('enableCropBtn');
+            const resetCropBtn = document.getElementById('resetCropBtn');
+            const cropX = document.getElementById('cropX');
+            const cropY = document.getElementById('cropY');
+            const cropWidth = document.getElementById('cropWidth');
+            const cropHeight = document.getElementById('cropHeight');
 
             // FFmpeg初期化（真のシングルスレッド版：@ffmpeg/core-st使用）
             async function initFFmpeg() {
@@ -739,6 +919,18 @@
                 duration: 0
             };
             
+            // 切り出し範囲の情報
+            let cropData = {
+                enabled: false,
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
+                selecting: false,
+                startX: 0,
+                startY: 0
+            };
+            
             // サイズモードの切り替え
             function updateSizeMode() {
                 const mode = sizeMode.value;
@@ -828,6 +1020,179 @@
             
             startTimeInput.addEventListener('input', updateDurationDisplay);
             endTimeInput.addEventListener('input', updateDurationDisplay);
+            
+            // 切り出し範囲選択の実装
+            let isSelecting = false;
+            let selectionStart = {x: 0, y: 0};
+            
+            enableCropBtn.addEventListener('click', () => {
+                cropData.enabled = !cropData.enabled;
+                if (cropData.enabled) {
+                    enableCropBtn.classList.add('active');
+                    enableCropBtn.textContent = '✂️ 選択モード中';
+                    resetCropBtn.style.display = 'inline-block';
+                    canvasWrapper.style.cursor = 'crosshair';
+                    
+                    // 入力フィールドを有効化
+                    cropX.disabled = false;
+                    cropY.disabled = false;
+                    cropWidth.disabled = false;
+                    cropHeight.disabled = false;
+                } else {
+                    disableCropMode();
+                }
+            });
+            
+            resetCropBtn.addEventListener('click', () => {
+                cropData.x = 0;
+                cropData.y = 0;
+                cropData.width = 0;
+                cropData.height = 0;
+                updateCropInputs();
+                selectionBox.style.display = 'none';
+                drawOverlay();
+            });
+            
+            function disableCropMode() {
+                cropData.enabled = false;
+                enableCropBtn.classList.remove('active');
+                enableCropBtn.textContent = '✂️ 切り出し範囲を選択';
+                resetCropBtn.style.display = 'none';
+                canvasWrapper.style.cursor = 'default';
+                
+                // 入力フィールドを無効化
+                cropX.disabled = true;
+                cropY.disabled = true;
+                cropWidth.disabled = true;
+                cropHeight.disabled = true;
+            }
+            
+            // マウスイベントハンドラ
+            canvasWrapper.addEventListener('mousedown', (e) => {
+                if (!cropData.enabled) return;
+                
+                const rect = videoPreview.getBoundingClientRect();
+                const scaleX = videoPreview.videoWidth / rect.width;
+                const scaleY = videoPreview.videoHeight / rect.height;
+                
+                isSelecting = true;
+                selectionStart.x = (e.clientX - rect.left) * scaleX;
+                selectionStart.y = (e.clientY - rect.top) * scaleY;
+                
+                cropData.x = selectionStart.x;
+                cropData.y = selectionStart.y;
+                cropData.width = 0;
+                cropData.height = 0;
+            });
+            
+            canvasWrapper.addEventListener('mousemove', (e) => {
+                if (!isSelecting || !cropData.enabled) return;
+                
+                const rect = videoPreview.getBoundingClientRect();
+                const scaleX = videoPreview.videoWidth / rect.width;
+                const scaleY = videoPreview.videoHeight / rect.height;
+                
+                const currentX = (e.clientX - rect.left) * scaleX;
+                const currentY = (e.clientY - rect.top) * scaleY;
+                
+                cropData.x = Math.min(selectionStart.x, currentX);
+                cropData.y = Math.min(selectionStart.y, currentY);
+                cropData.width = Math.abs(currentX - selectionStart.x);
+                cropData.height = Math.abs(currentY - selectionStart.y);
+                
+                // 境界チェック
+                cropData.x = Math.max(0, cropData.x);
+                cropData.y = Math.max(0, cropData.y);
+                cropData.width = Math.min(cropData.width, videoPreview.videoWidth - cropData.x);
+                cropData.height = Math.min(cropData.height, videoPreview.videoHeight - cropData.y);
+                
+                updateCropInputs();
+                updateSelectionBox();
+                drawOverlay();
+            });
+            
+            canvasWrapper.addEventListener('mouseup', () => {
+                isSelecting = false;
+            });
+            
+            // 選択ボックスの更新
+            function updateSelectionBox() {
+                if (cropData.width > 0 && cropData.height > 0) {
+                    const rect = videoPreview.getBoundingClientRect();
+                    const scaleX = rect.width / videoPreview.videoWidth;
+                    const scaleY = rect.height / videoPreview.videoHeight;
+                    
+                    selectionBox.style.display = 'block';
+                    selectionBox.style.left = (cropData.x * scaleX) + 'px';
+                    selectionBox.style.top = (cropData.y * scaleY) + 'px';
+                    selectionBox.style.width = (cropData.width * scaleX) + 'px';
+                    selectionBox.style.height = (cropData.height * scaleY) + 'px';
+                } else {
+                    selectionBox.style.display = 'none';
+                }
+            }
+            
+            // 入力フィールドの更新
+            function updateCropInputs() {
+                cropX.value = Math.round(cropData.x);
+                cropY.value = Math.round(cropData.y);
+                cropWidth.value = Math.round(cropData.width);
+                cropHeight.value = Math.round(cropData.height);
+            }
+            
+            // 入力フィールドからの更新
+            [cropX, cropY, cropWidth, cropHeight].forEach(input => {
+                input.addEventListener('input', () => {
+                    cropData.x = parseInt(cropX.value) || 0;
+                    cropData.y = parseInt(cropY.value) || 0;
+                    cropData.width = parseInt(cropWidth.value) || 0;
+                    cropData.height = parseInt(cropHeight.value) || 0;
+                    updateSelectionBox();
+                    drawOverlay();
+                });
+            });
+            
+            // オーバーレイの描画
+            function drawOverlay() {
+                const ctx = overlayCanvas.getContext('2d');
+                overlayCanvas.width = videoPreview.videoWidth;
+                overlayCanvas.height = videoPreview.videoHeight;
+                
+                if (cropData.enabled && cropData.width > 0 && cropData.height > 0) {
+                    // 半透明の黒で全体を覆う
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                    
+                    // 選択範囲をクリア
+                    ctx.clearRect(cropData.x, cropData.y, cropData.width, cropData.height);
+                    
+                    // 選択範囲の枠線
+                    ctx.strokeStyle = '#667eea';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(cropData.x, cropData.y, cropData.width, cropData.height);
+                } else {
+                    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                }
+            }
+            
+            // 動画のメタデータ読み込み時にオーバーレイをリサイズ
+            videoPreview.addEventListener('loadedmetadata', () => {
+                const rect = videoPreview.getBoundingClientRect();
+                overlayCanvas.style.width = rect.width + 'px';
+                overlayCanvas.style.height = rect.height + 'px';
+                drawOverlay();
+            });
+            
+            // ウィンドウリサイズ時の処理
+            window.addEventListener('resize', () => {
+                if (videoPreview.videoWidth) {
+                    const rect = videoPreview.getBoundingClientRect();
+                    overlayCanvas.style.width = rect.width + 'px';
+                    overlayCanvas.style.height = rect.height + 'px';
+                    updateSelectionBox();
+                }
+            });
 
             // 進捗表示
             function updateProgress(percent, text) {
@@ -881,6 +1246,11 @@
                 selectedFile = file;
                 fileInfo.textContent = `選択されたファイル: ${file.name} (${fileSizeMB.toFixed(2)} MB)`;
                 fileInfo.style.display = 'block';
+                
+                // 動画プレビューを表示
+                const url = URL.createObjectURL(file);
+                videoPreview.src = url;
+                videoPreviewContainer.style.display = 'block';
                 
                 if (fileSizeMB > 10) {
                     fileInfo.textContent += ' ⚠️ 大きいファイルのため、変換に時間がかかります';
@@ -1039,10 +1409,16 @@
                     updateStep(2, 'active');
                     updateProgress(30, 'パレットを生成中...');
                     
+                    // 切り出し範囲の設定
+                    let cropFilter = '';
+                    if (cropData.enabled && cropData.width > 0 && cropData.height > 0) {
+                        cropFilter = `crop=${Math.round(cropData.width)}:${Math.round(cropData.height)}:${Math.round(cropData.x)}:${Math.round(cropData.y)},`;
+                    }
+                    
                     // フィルターとその他のオプションを追加
                     ffmpegArgs.push(
                         '-filter_complex',
-                        `[0:v]fps=${fps},scale=${scale}:flags=lanczos,split[s0][s1];` +
+                        `[0:v]${cropFilter}fps=${fps},scale=${scale}:flags=lanczos,split[s0][s1];` +
                         `[s0]palettegen[p];` +
                         `[p]split[p1][p2];` +
                         `[s1][p1]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle[gif];` +
@@ -1169,7 +1545,22 @@
                 processSteps.style.display = 'none';
                 palettePreview.style.display = 'none';
                 fsInfo.style.display = 'none';
+                videoPreviewContainer.style.display = 'none';
                 convertBtn.disabled = true;
+                
+                // 切り出し設定をリセット
+                cropData = {
+                    enabled: false,
+                    x: 0,
+                    y: 0,
+                    width: 0,
+                    height: 0,
+                    selecting: false,
+                    startX: 0,
+                    startY: 0
+                };
+                disableCropMode();
+                selectionBox.style.display = 'none';
                 widthInput.value = '600';
                 heightInput.value = '400';
                 fpsInput.value = '30';

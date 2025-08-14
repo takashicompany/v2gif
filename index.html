@@ -366,6 +366,15 @@
             border-radius: 8px;
             transition: all 0.3s ease;
         }
+        
+        .step-item.clickable {
+            cursor: pointer;
+        }
+        
+        .step-item.clickable:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
 
         .step-item.active {
             background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
@@ -723,9 +732,9 @@
                 <div class="step-icon">1</div>
                 <div class="step-text">ファイルをメモリに読み込み</div>
             </div>
-            <div class="step-item" id="step2">
+            <div class="step-item clickable" id="step2">
                 <div class="step-icon">2</div>
-                <div class="step-text">パレット生成中</div>
+                <div class="step-text">パレット生成中 <span id="paletteToggleHint" style="font-size: 12px; color: #999;">（クリックで表示）</span></div>
             </div>
             <div class="step-item" id="step3">
                 <div class="step-icon">3</div>
@@ -737,8 +746,8 @@
             </div>
         </div>
 
-        <div class="palette-preview" id="palettePreview">
-            <div class="palette-title">🎨 生成されたパレット</div>
+        <div class="palette-preview" id="palettePreview" style="display: none;">
+            <div class="palette-title">🎨 生成されたパレット <span style="font-size: 12px; color: #999; cursor: pointer; float: right;" onclick="togglePalette()">✖ 閉じる</span></div>
             <div class="palette-image">
                 <img id="paletteImg" alt="パレット画像">
             </div>
@@ -798,6 +807,8 @@
             const paletteImg = document.getElementById('paletteImg');
             const paletteInfo = document.getElementById('paletteInfo');
             const fsInfo = document.getElementById('fsInfo');
+            const step2 = document.getElementById('step2');
+            const paletteToggleHint = document.getElementById('paletteToggleHint');
             const sizeMode = document.getElementById('sizeMode');
             const widthGroup = document.getElementById('widthGroup');
             const heightGroup = document.getElementById('heightGroup');
@@ -885,8 +896,27 @@
                 errorMessage.style.display = 'none';
             }
             
+            // パレット表示の切り替え
+            function togglePalette() {
+                if (palettePreview.style.display === 'none') {
+                    palettePreview.style.display = 'block';
+                    paletteToggleHint.textContent = '（クリックで非表示）';
+                } else {
+                    palettePreview.style.display = 'none';
+                    paletteToggleHint.textContent = '（クリックで表示）';
+                }
+            }
+            
+            // ステップ2のクリックイベント
+            step2.addEventListener('click', () => {
+                if (step2.classList.contains('completed')) {
+                    togglePalette();
+                }
+            });
+            
             // グローバルに公開（onclick用）
             window.closeError = closeError;
+            window.togglePalette = togglePalette;
 
             // ステップ表示更新
             function updateStep(stepNumber, status = 'active') {
@@ -1516,7 +1546,7 @@
                         const paletteUrl = URL.createObjectURL(paletteBlob);
                         paletteImg.src = paletteUrl;
                         paletteInfo.textContent = `サイズ: ${paletteData.length} bytes | 256色パレット (16x16ピクセル)`;
-                        palettePreview.style.display = 'block';
+                        // パレットはデフォルトで非表示
                     } catch (e) {
                         console.error('Palette preview error:', e);
                     }
@@ -1600,6 +1630,7 @@
                 warningMessage.style.display = 'none';
                 processSteps.style.display = 'none';
                 palettePreview.style.display = 'none';
+                paletteToggleHint.textContent = '（クリックで表示）';
                 fsInfo.style.display = 'none';
                 // UI要素を非表示
                 videoPreviewContainer.style.display = 'none';

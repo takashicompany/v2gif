@@ -89,6 +89,46 @@
             display: flex;
             flex-direction: column;
         }
+        
+        .size-mode-selector {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .size-mode-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .size-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .size-input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .size-input-group.hidden {
+            display: none;
+        }
+        
+        .calculated-value {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
 
         .setting-group label {
             color: #555;
@@ -413,17 +453,31 @@
         <div class="error-message" id="errorMessage"></div>
 
         <div class="settings">
-            <div class="setting-group">
-                <label for="widthInput">幅 (px)</label>
-                <input type="text" id="widthInput" value="600" placeholder="例: 600">
-                <span class="hint">-1で縦横比を維持</span>
+            <div class="size-mode-selector">
+                <label for="sizeMode" style="display: block; margin-bottom: 8px; color: #555; font-size: 14px; font-weight: 500;">
+                    サイズ指定方法
+                </label>
+                <select id="sizeMode">
+                    <option value="both">幅と高さを指定する</option>
+                    <option value="width">幅を指定する（縦横比維持）</option>
+                    <option value="height">高さを指定する（縦横比維持）</option>
+                </select>
             </div>
-            <div class="setting-group">
-                <label for="heightInput">高さ (px)</label>
-                <input type="text" id="heightInput" value="-1" placeholder="例: -1">
-                <span class="hint">-1で縦横比を維持</span>
+            
+            <div class="size-inputs">
+                <div class="size-input-group" id="widthGroup">
+                    <label for="widthInput">幅 (px)</label>
+                    <input type="number" id="widthInput" value="600" placeholder="例: 600" min="1">
+                    <span class="calculated-value" id="widthCalculated" style="display: none;"></span>
+                </div>
+                <div class="size-input-group" id="heightGroup">
+                    <label for="heightInput">高さ (px)</label>
+                    <input type="number" id="heightInput" value="400" placeholder="例: 400" min="1">
+                    <span class="calculated-value" id="heightCalculated" style="display: none;"></span>
+                </div>
             </div>
-            <div class="setting-group">
+            
+            <div class="setting-group" style="margin-top: 20px;">
                 <label for="fpsInput">FPS (フレームレート)</label>
                 <input type="number" id="fpsInput" value="30" min="1" max="60" placeholder="例: 30">
                 <span class="hint">デフォルト: 30</span>
@@ -526,6 +580,11 @@
             const paletteImg = document.getElementById('paletteImg');
             const paletteInfo = document.getElementById('paletteInfo');
             const fsInfo = document.getElementById('fsInfo');
+            const sizeMode = document.getElementById('sizeMode');
+            const widthGroup = document.getElementById('widthGroup');
+            const heightGroup = document.getElementById('heightGroup');
+            const widthCalculated = document.getElementById('widthCalculated');
+            const heightCalculated = document.getElementById('heightCalculated');
 
             // FFmpeg初期化（真のシングルスレッド版：@ffmpeg/core-st使用）
             async function initFFmpeg() {
@@ -596,6 +655,80 @@
                 fsInfo.textContent = message;
                 fsInfo.style.display = 'block';
             }
+            
+            // 動画のメタデータを保持
+            let videoMetadata = {
+                width: 600,
+                height: 400,
+                aspectRatio: 1.5
+            };
+            
+            // サイズモードの切り替え
+            function updateSizeMode() {
+                const mode = sizeMode.value;
+                
+                // 表示をリセット
+                widthGroup.style.display = 'flex';
+                heightGroup.style.display = 'flex';
+                widthCalculated.style.display = 'none';
+                heightCalculated.style.display = 'none';
+                widthInput.disabled = false;
+                heightInput.disabled = false;
+                
+                switch(mode) {
+                    case 'width':
+                        // 幅を指定（高さは自動計算）
+                        heightGroup.style.display = 'none';
+                        calculateHeightFromWidth();
+                        break;
+                    case 'height':
+                        // 高さを指定（幅は自動計算）
+                        widthGroup.style.display = 'none';
+                        calculateWidthFromHeight();
+                        break;
+                    case 'both':
+                    default:
+                        // 両方指定
+                        break;
+                }
+            }
+            
+            // 幅から高さを計算
+            function calculateHeightFromWidth() {
+                const width = parseInt(widthInput.value);
+                if (!isNaN(width) && width > 0 && videoMetadata.aspectRatio) {
+                    const calculatedHeight = Math.round(width / videoMetadata.aspectRatio);
+                    heightInput.value = calculatedHeight;
+                    heightCalculated.textContent = `自動計算: ${calculatedHeight}px`;
+                    heightCalculated.style.display = 'block';
+                }
+            }
+            
+            // 高さから幅を計算
+            function calculateWidthFromHeight() {
+                const height = parseInt(heightInput.value);
+                if (!isNaN(height) && height > 0 && videoMetadata.aspectRatio) {
+                    const calculatedWidth = Math.round(height * videoMetadata.aspectRatio);
+                    widthInput.value = calculatedWidth;
+                    widthCalculated.textContent = `自動計算: ${calculatedWidth}px`;
+                    widthCalculated.style.display = 'block';
+                }
+            }
+            
+            // イベントリスナー
+            sizeMode.addEventListener('change', updateSizeMode);
+            
+            widthInput.addEventListener('input', () => {
+                if (sizeMode.value === 'width') {
+                    calculateHeightFromWidth();
+                }
+            });
+            
+            heightInput.addEventListener('input', () => {
+                if (sizeMode.value === 'height') {
+                    calculateWidthFromHeight();
+                }
+            });
 
             // 進捗表示
             function updateProgress(percent, text) {
@@ -665,9 +798,17 @@
                             const videoWidth = video.videoWidth;
                             const videoHeight = video.videoHeight;
                             
+                            // メタデータを保存
+                            videoMetadata.width = videoWidth;
+                            videoMetadata.height = videoHeight;
+                            videoMetadata.aspectRatio = videoWidth / videoHeight;
+                            
                             // 入力フィールドに設定
                             widthInput.value = videoWidth.toString();
                             heightInput.value = videoHeight.toString();
+                            
+                            // モードに応じて表示を更新
+                            updateSizeMode();
                             
                             fileInfo.textContent += ` | サイズ: ${videoWidth}x${videoHeight}`;
                             
@@ -748,9 +889,18 @@
                     updateProgress(25, '変換準備完了...');
                     
                     // サイズ設定
-                    const width = widthInput.value || '600';
-                    const height = heightInput.value || '-1';
+                    let width = widthInput.value || '600';
+                    let height = heightInput.value || '400';
                     const fps = fpsInput.value || '30';
+                    
+                    // モードに応じてサイズを設定
+                    const mode = sizeMode.value;
+                    if (mode === 'width') {
+                        height = '-1'; // FFmpegに縦横比維持を任せる
+                    } else if (mode === 'height') {
+                        width = '-1'; // FFmpegに縦横比維持を任せる
+                    }
+                    
                     const scale = `${width}:${height}`;
                     
                     // ステップ2: パレット生成とGIF変換
@@ -877,8 +1027,10 @@
                 fsInfo.style.display = 'none';
                 convertBtn.disabled = true;
                 widthInput.value = '600';
-                heightInput.value = '-1';
+                heightInput.value = '400';
                 fpsInput.value = '30';
+                sizeMode.value = 'both';
+                updateSizeMode();
             });
         })();
     </script>

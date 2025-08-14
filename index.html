@@ -783,6 +783,7 @@
             let isProcessing = false;
             let selectedFile = null;
             let outputBlob = null;
+            let ffmpegError = null; // FFmpegのエラーを記録
 
             // DOM要素
             const uploadArea = document.getElementById('uploadArea');
@@ -846,6 +847,14 @@
                         if (message) {
                             console.log(message);
                             appendLog(message);
+                            
+                            // エラーメッセージを検出
+                            if (message.includes('Out of memory') || 
+                                message.includes('Error while filtering') ||
+                                message.includes('Conversion failed') ||
+                                message.includes('failed to execute')) {
+                                ffmpegError = message;
+                            }
                         }
                     });
                     
@@ -868,19 +877,28 @@
                 logsContent.scrollTop = logsContent.scrollHeight;
             }
 
-            // エラー表示
+            // エラー表示（ダイアログ形式）
             function showError(message, errorObj = null) {
                 const errorText = document.getElementById('errorText');
                 const errorCode = document.getElementById('errorCode');
                 
-                errorText.textContent = 'エラーが発生しました。' + message;
+                // メモリエラーの場合は特別なメッセージ
+                if (errorObj && errorObj.code === 'MEMORY_ERROR') {
+                    // alertダイアログで表示
+                    alert('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。');
+                    
+                    // エラーメッセージエリアにも表示
+                    errorText.textContent = 'メモリが不足しています。アップロードする動画の大きさと長さを調整してください。';
+                } else {
+                    errorText.textContent = 'エラーが発生しました。' + message;
+                }
                 
                 if (errorObj) {
                     // エラーコードや詳細情報を表示
                     const errorInfo = [];
                     if (errorObj.code) errorInfo.push(`Code: ${errorObj.code}`);
-                    if (errorObj.name) errorInfo.push(`Type: ${errorObj.name}`);
-                    if (errorObj.message && errorObj.message !== message) {
+                    if (errorObj.name && errorObj.code !== 'MEMORY_ERROR') errorInfo.push(`Type: ${errorObj.name}`);
+                    if (errorObj.message && errorObj.message !== message && errorObj.code !== 'MEMORY_ERROR') {
                         errorInfo.push(`Details: ${errorObj.message}`);
                     }
                     errorCode.textContent = errorInfo.length > 0 ? errorInfo.join(' | ') : '';
@@ -1517,7 +1535,27 @@
                     
                     // 1コマンドでGIFとパレットプレビューを同時生成
                     console.log('FFmpeg command:', ffmpegArgs.join(' '));
+                    
+                    // FFmpeg実行前にエラーをリセット
+                    ffmpegError = null;
+                    
                     await ffmpeg.run(...ffmpegArgs);
+                    
+                    // エラーチェック
+                    if (ffmpegError) {
+                        throw new Error(ffmpegError);
+                    }
+                    
+                    // output.gifの存在とサイズをチェック
+                    const files = ffmpeg.FS('readdir', '/');
+                    if (!files.includes('output.gif')) {
+                        throw new Error('Out of memory: GIF file was not created');
+                    }
+                    
+                    const outputStat = ffmpeg.FS('stat', '/output.gif');
+                    if (outputStat.size === 0) {
+                        throw new Error('Out of memory: GIF file is empty');
+                    }
                     
                     updateStep(2, 'completed');
                     
@@ -1589,7 +1627,28 @@
                     
                 } catch (error) {
                     console.error('変換エラー:', error);
-                    showError('変換処理中に問題が発生しました。', error);
+                    
+                    // メモリ不足エラーの検出
+                    const errorMessage = error.message || error.toString();
+                    const isMemoryError = 
+                        errorMessage.includes('Out of memory') ||
+                        errorMessage.includes('memory') ||
+                        errorMessage.includes('OOM') ||
+                        errorMessage.includes('RangeError') ||
+                        errorMessage.includes('Maximum call stack') ||
+                        errorMessage.includes('failed to execute') ||
+                        errorMessage.includes('Error while filtering') ||
+                        errorMessage.includes('Conversion failed'); // FFmpegの変換失敗も含める
+                    
+                    if (isMemoryError) {
+                        showError('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。', {
+                            code: 'MEMORY_ERROR',
+                            name: 'メモリ不足',
+                            message: error.message
+                        });
+                    } else {
+                        showError('変換処理中に問題が発生しました。', error);
+                    }
                 } finally {
                     isProcessing = false;
                     convertBtn.disabled = false;

@@ -1054,6 +1054,15 @@
                     setTimeout(() => {
                         progressContainer.style.display = 'none';
                     }, 2000);
+                    
+                    // FFmpegインスタンスを終了（次回実行のため）
+                    setTimeout(() => {
+                        if (ffmpeg && ffmpeg.isLoaded()) {
+                            console.log('Terminating FFmpeg instance for next run...');
+                            ffmpeg.exit();
+                            ffmpeg = null;
+                        }
+                    }, 3000);  // 少し遅延させてから終了
                 }
             });
 

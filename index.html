@@ -784,6 +784,9 @@
             let selectedFile = null;
             let outputBlob = null;
             let ffmpegError = null; // FFmpegのエラーを記録
+            
+            // エラーメッセージ定数
+            const MEMORY_ERROR_MESSAGE = 'メモリが不足しています。アップロードする動画の大きさと長さを調整してください。';
 
             // DOM要素
             const uploadArea = document.getElementById('uploadArea');
@@ -885,10 +888,10 @@
                 // メモリエラーの場合は特別なメッセージ
                 if (errorObj && errorObj.code === 'MEMORY_ERROR') {
                     // alertダイアログで表示
-                    alert('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。');
+                    alert(MEMORY_ERROR_MESSAGE);
                     
                     // エラーメッセージエリアにも表示
-                    errorText.textContent = 'メモリが不足しています。アップロードする動画の大きさと長さを調整してください。';
+                    errorText.textContent = MEMORY_ERROR_MESSAGE;
                 } else {
                     errorText.textContent = 'エラーが発生しました。' + message;
                 }
@@ -1641,7 +1644,7 @@
                         errorMessage.includes('Conversion failed'); // FFmpegの変換失敗も含める
                     
                     if (isMemoryError) {
-                        showError('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。', {
+                        showError(MEMORY_ERROR_MESSAGE, {
                             code: 'MEMORY_ERROR',
                             name: 'メモリ不足',
                             message: error.message

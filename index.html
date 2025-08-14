@@ -1655,7 +1655,8 @@
                         errorMessage.includes('RangeError') ||
                         errorMessage.includes('Maximum call stack') ||
                         errorMessage.includes('failed to execute') ||
-                        errorMessage.includes('Error while filtering');
+                        errorMessage.includes('Error while filtering') ||
+                        errorMessage.includes('Conversion failed'); // FFmpegの変換失敗も含める
                     
                     appendLog('[CATCH BLOCK] Is memory error: ' + isMemoryError);
                     

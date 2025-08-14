@@ -786,7 +786,7 @@
             let ffmpegError = null; // FFmpegのエラーを記録
             
             // エラーメッセージ定数
-            const MEMORY_ERROR_MESSAGE = 'メモリが不足しています。アップロードする動画の大きさと長さを調整してください。';
+            const MEMORY_ERROR_MESSAGE = 'メモリが不足しています。\n\n- 切り出し時間を見直す\n- 書き出しサイズを見直す\n- FPSを見直す\n-アップロードする動画の大きさと長さを調整する\n\n等をお試しください🙏';
 
             // DOM要素
             const uploadArea = document.getElementById('uploadArea');

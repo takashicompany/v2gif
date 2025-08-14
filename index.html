@@ -677,18 +677,22 @@
                 
                 switch(mode) {
                     case 'width':
-                        // 幅を指定（高さは自動計算）
-                        heightGroup.style.display = 'none';
+                        // 幅を指定（高さは自動計算で表示）
+                        heightInput.disabled = true;
+                        heightInput.style.backgroundColor = '#f0f0f0';
                         calculateHeightFromWidth();
                         break;
                     case 'height':
-                        // 高さを指定（幅は自動計算）
-                        widthGroup.style.display = 'none';
+                        // 高さを指定（幅は自動計算で表示）
+                        widthInput.disabled = true;
+                        widthInput.style.backgroundColor = '#f0f0f0';
                         calculateWidthFromHeight();
                         break;
                     case 'both':
                     default:
                         // 両方指定
+                        widthInput.style.backgroundColor = 'white';
+                        heightInput.style.backgroundColor = 'white';
                         break;
                 }
             }
@@ -699,7 +703,7 @@
                 if (!isNaN(width) && width > 0 && videoMetadata.aspectRatio) {
                     const calculatedHeight = Math.round(width / videoMetadata.aspectRatio);
                     heightInput.value = calculatedHeight;
-                    heightCalculated.textContent = `自動計算: ${calculatedHeight}px`;
+                    heightCalculated.textContent = `縦横比 ${videoMetadata.aspectRatio.toFixed(2)} より自動計算`;
                     heightCalculated.style.display = 'block';
                 }
             }
@@ -710,7 +714,7 @@
                 if (!isNaN(height) && height > 0 && videoMetadata.aspectRatio) {
                     const calculatedWidth = Math.round(height * videoMetadata.aspectRatio);
                     widthInput.value = calculatedWidth;
-                    widthCalculated.textContent = `自動計算: ${calculatedWidth}px`;
+                    widthCalculated.textContent = `縦横比 ${videoMetadata.aspectRatio.toFixed(2)} より自動計算`;
                     widthCalculated.style.display = 'block';
                 }
             }

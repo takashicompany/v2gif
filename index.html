@@ -853,7 +853,6 @@
                                 message.includes('Error while filtering') ||
                                 message.includes('Conversion failed') ||
                                 message.includes('failed to execute')) {
-                                appendLog('[ERROR DETECTED] ' + message);
                                 ffmpegError = message;
                             }
                         }
@@ -886,22 +885,10 @@
                 // メモリエラーの場合は特別なメッセージ
                 if (errorObj && errorObj.code === 'MEMORY_ERROR') {
                     // alertダイアログで表示
-                    alert('メモリが不足しています。\n\n' +
-                          '以下の方法で解決できます：\n' +
-                          '• 動画の解像度を下げる（例：600×400以下）\n' +
-                          '• 変換する時間範囲を短くする（例：10秒以内）\n' +
-                          '• FPSを下げる（例：15fps以下）');
+                    alert('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。');
                     
                     // エラーメッセージエリアにも表示
-                    errorText.innerHTML = `
-                        <strong>メモリが不足しています</strong><br>
-                        <span style="font-size: 14px;">以下の方法で解決できます：</span><br>
-                        <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
-                            <li>動画の解像度を下げる（例：600×400以下）</li>
-                            <li>変換する時間範囲を短くする（例：10秒以内）</li>
-                            <li>FPSを下げる（例：15fps以下）</li>
-                        </ul>
-                    `;
+                    errorText.textContent = 'メモリが不足しています。アップロードする動画の大きさと長さを調整してください。';
                 } else {
                     errorText.textContent = 'エラーが発生しました。' + message;
                 }
@@ -1551,15 +1538,11 @@
                     
                     // FFmpeg実行前にエラーをリセット
                     ffmpegError = null;
-                    appendLog('[INFO] Starting FFmpeg conversion...');
                     
                     await ffmpeg.run(...ffmpegArgs);
                     
-                    appendLog('[INFO] FFmpeg finished. Error status: ' + (ffmpegError ? 'ERROR' : 'OK'));
-                    
                     // エラーチェック
                     if (ffmpegError) {
-                        appendLog('[ERROR] Throwing error: ' + ffmpegError);
                         throw new Error(ffmpegError);
                     }
                     
@@ -1644,7 +1627,6 @@
                     
                 } catch (error) {
                     console.error('変換エラー:', error);
-                    appendLog('[CATCH BLOCK] Error caught: ' + error.message);
                     
                     // メモリ不足エラーの検出
                     const errorMessage = error.message || error.toString();
@@ -1658,10 +1640,7 @@
                         errorMessage.includes('Error while filtering') ||
                         errorMessage.includes('Conversion failed'); // FFmpegの変換失敗も含める
                     
-                    appendLog('[CATCH BLOCK] Is memory error: ' + isMemoryError);
-                    
                     if (isMemoryError) {
-                        appendLog('[CATCH BLOCK] Showing memory error dialog...');
                         showError('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。', {
                             code: 'MEMORY_ERROR',
                             name: 'メモリ不足',

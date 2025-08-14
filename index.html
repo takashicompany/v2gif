@@ -482,7 +482,9 @@
         
         .video-canvas {
             display: block;
+            width: 100%;
             max-width: 100%;
+            height: auto;
             background: #000;
         }
         
@@ -650,7 +652,7 @@
             <div class="video-preview-title">📹 動画プレビュー & 切り出し範囲選択</div>
             <div class="video-canvas-wrapper" id="canvasWrapper">
                 <video id="videoPreview" class="video-canvas" controls></video>
-                <canvas id="overlayCanvas" class="video-canvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+                <canvas id="overlayCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; width: 100%; height: 100%; display: none;"></canvas>
                 <div class="selection-box" id="selectionBox">
                     <div class="selection-handles" id="selectionHandles">
                         <div class="selection-handle nw" data-handle="nw"></div>
@@ -1032,6 +1034,7 @@
                     enableCropBtn.textContent = '✂️ 選択モード中';
                     resetCropBtn.style.display = 'inline-block';
                     canvasWrapper.style.cursor = 'crosshair';
+                    overlayCanvas.style.display = 'block';  // オーバーレイを表示
                     
                     // 入力フィールドを有効化
                     cropX.disabled = false;
@@ -1059,6 +1062,7 @@
                 enableCropBtn.textContent = '✂️ 切り出し範囲を選択';
                 resetCropBtn.style.display = 'none';
                 canvasWrapper.style.cursor = 'default';
+                overlayCanvas.style.display = 'none';  // オーバーレイを非表示
                 
                 // 入力フィールドを無効化
                 cropX.disabled = true;
@@ -1253,10 +1257,14 @@
                 
                 // 動画プレビュー用のURLを作成（一度だけ）
                 const previewUrl = URL.createObjectURL(file);
+                console.log('Preview URL created:', previewUrl);
                 
                 // 動画プレビューを表示
                 videoPreview.src = previewUrl;
                 videoPreviewContainer.style.display = 'block';
+                
+                // 動画を再生可能な状態にする
+                videoPreview.load();
                 
                 // プレビュー動画のメタデータを取得
                 await new Promise((resolve) => {
@@ -1292,10 +1300,12 @@
                         updateDurationDisplay();
                         
                         // オーバーレイキャンバスのサイズを調整
-                        const rect = videoPreview.getBoundingClientRect();
-                        overlayCanvas.style.width = rect.width + 'px';
-                        overlayCanvas.style.height = rect.height + 'px';
-                        drawOverlay();
+                        setTimeout(() => {
+                            const rect = videoPreview.getBoundingClientRect();
+                            overlayCanvas.style.width = rect.width + 'px';
+                            overlayCanvas.style.height = rect.height + 'px';
+                            drawOverlay();
+                        }, 100);
                         
                         resolve();
                     };

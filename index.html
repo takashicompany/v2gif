@@ -873,14 +873,27 @@
                 const errorText = document.getElementById('errorText');
                 const errorCode = document.getElementById('errorCode');
                 
-                errorText.textContent = 'エラーが発生しました。' + message;
+                // メモリエラーの場合は特別なメッセージ
+                if (errorObj && errorObj.code === 'MEMORY_ERROR') {
+                    errorText.innerHTML = `
+                        <strong>メモリが不足しています</strong><br>
+                        <span style="font-size: 14px;">以下の方法で解決できます：</span><br>
+                        <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
+                            <li>動画の解像度を下げる（例：600×400以下）</li>
+                            <li>変換する時間範囲を短くする（例：10秒以内）</li>
+                            <li>FPSを下げる（例：15fps以下）</li>
+                        </ul>
+                    `;
+                } else {
+                    errorText.textContent = 'エラーが発生しました。' + message;
+                }
                 
                 if (errorObj) {
                     // エラーコードや詳細情報を表示
                     const errorInfo = [];
                     if (errorObj.code) errorInfo.push(`Code: ${errorObj.code}`);
-                    if (errorObj.name) errorInfo.push(`Type: ${errorObj.name}`);
-                    if (errorObj.message && errorObj.message !== message) {
+                    if (errorObj.name && errorObj.code !== 'MEMORY_ERROR') errorInfo.push(`Type: ${errorObj.name}`);
+                    if (errorObj.message && errorObj.message !== message && errorObj.code !== 'MEMORY_ERROR') {
                         errorInfo.push(`Details: ${errorObj.message}`);
                     }
                     errorCode.textContent = errorInfo.length > 0 ? errorInfo.join(' | ') : '';
@@ -1589,7 +1602,27 @@
                     
                 } catch (error) {
                     console.error('変換エラー:', error);
-                    showError('変換処理中に問題が発生しました。', error);
+                    
+                    // メモリ不足エラーの検出
+                    const errorMessage = error.message || error.toString();
+                    const isMemoryError = 
+                        errorMessage.includes('Out of memory') ||
+                        errorMessage.includes('memory') ||
+                        errorMessage.includes('OOM') ||
+                        errorMessage.includes('RangeError') ||
+                        errorMessage.includes('Maximum call stack') ||
+                        errorMessage.includes('failed to execute') ||
+                        errorMessage.includes('Error while filtering');
+                    
+                    if (isMemoryError) {
+                        showError('メモリが不足しています。アップロードする動画の大きさと長さを調整してください。', {
+                            code: 'MEMORY_ERROR',
+                            name: 'メモリ不足',
+                            message: error.message
+                        });
+                    } else {
+                        showError('変換処理中に問題が発生しました。', error);
+                    }
                 } finally {
                     isProcessing = false;
                     convertBtn.disabled = false;

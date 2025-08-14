@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動画からGIFアニメーション変換</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8ecff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 16px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .settings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .setting-group label {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .setting-group input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .setting-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .setting-group .hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .progress-container {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .result-container {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        .result-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .result-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #resultGif {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-info {
+            display: none;
+            background: #e8f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #0066cc;
+            font-size: 14px;
+        }
+
+        .error-message {
+            display: none;
+            background: #ffe8e8;
+            color: #cc0000;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .warning-message {
+            display: none;
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .logs-container {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .logs-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .logs-content {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .process-steps {
+            display: none;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active {
+            background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+            border: 1px solid #667eea;
+        }
+
+        .step-item.completed {
+            background: #e8f8f5;
+            border: 1px solid #4caf50;
+        }
+
+        .step-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 14px;
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .step-item.active .step-icon {
+            background: #667eea;
+            color: white;
+        }
+
+        .step-item.completed .step-icon {
+            background: #4caf50;
+            color: white;
+        }
+
+        .step-text {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .palette-preview {
+            display: none;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .palette-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .palette-image {
+            display: inline-block;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .palette-image img {
+            display: block;
+            width: 256px;
+            height: 256px;
+            image-rendering: pixelated;
+        }
+
+        .palette-info {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .fs-info {
+            display: none;
+            margin: 10px 0;
+            padding: 10px;
+            background: #e8f4ff;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #0066cc;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 動画 → GIFアニメーション変換</h1>
+        <p class="subtitle">高品質なGIFアニメーションをブラウザ上で生成します（サーバー不要）</p>
+        
+        <div class="warning-message" id="warningMessage">
+            ⚠️ 変換中はブラウザが一時的に固まることがあります。しばらくお待ちください。
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">
+                クリックして動画ファイルを選択<br>
+                またはドラッグ&ドロップ
+            </div>
+            <input type="file" id="fileInput" accept="video/*">
+        </div>
+
+        <div class="file-info" id="fileInfo"></div>
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="settings">
+            <div class="setting-group">
+                <label for="widthInput">幅 (px)</label>
+                <input type="text" id="widthInput" value="600" placeholder="例: 600">
+                <span class="hint">-1で縦横比を維持</span>
+            </div>
+            <div class="setting-group">
+                <label for="heightInput">高さ (px)</label>
+                <input type="text" id="heightInput" value="-1" placeholder="例: -1">
+                <span class="hint">-1で縦横比を維持</span>
+            </div>
+            <div class="setting-group">
+                <label for="fpsInput">FPS (フレームレート)</label>
+                <input type="number" id="fpsInput" value="12" min="1" max="30" placeholder="例: 12">
+                <span class="hint">推奨: 10-15</span>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-primary" id="convertBtn" disabled>
+                GIFに変換
+            </button>
+            <button class="btn btn-secondary" id="resetBtn">
+                リセット
+            </button>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">準備中...</div>
+        </div>
+
+        <div class="process-steps" id="processSteps">
+            <div class="step-item" id="step1">
+                <div class="step-icon">1</div>
+                <div class="step-text">ファイルをメモリに読み込み</div>
+            </div>
+            <div class="step-item" id="step2">
+                <div class="step-icon">2</div>
+                <div class="step-text">パレット生成中</div>
+            </div>
+            <div class="step-item" id="step3">
+                <div class="step-icon">3</div>
+                <div class="step-text">GIFアニメーション変換中</div>
+            </div>
+            <div class="step-item" id="step4">
+                <div class="step-icon">4</div>
+                <div class="step-text">結果を準備中</div>
+            </div>
+        </div>
+
+        <div class="palette-preview" id="palettePreview">
+            <div class="palette-title">🎨 生成されたパレット</div>
+            <div class="palette-image">
+                <img id="paletteImg" alt="パレット画像">
+            </div>
+            <div class="palette-info" id="paletteInfo"></div>
+        </div>
+
+        <div class="fs-info" id="fsInfo"></div>
+
+        <div class="logs-container" id="logsContainer">
+            <div class="logs-title">変換ログ</div>
+            <div class="logs-content" id="logsContent"></div>
+        </div>
+
+        <div class="result-container" id="resultContainer">
+            <div class="result-title">✨ 変換完了！</div>
+            <div class="result-content">
+                <img id="resultGif" alt="変換されたGIF">
+                <button class="btn btn-primary" id="downloadBtn">
+                    ダウンロード
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FFmpeg.wasm CDN（シングルスレッド版 - バージョン統一） -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js"></script>
+    <script>
+        (async () => {
+            const { createFFmpeg, fetchFile } = FFmpeg;
+            
+            let ffmpeg = null;
+            let isProcessing = false;
+            let selectedFile = null;
+            let outputBlob = null;
+
+            // DOM要素
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const fileInfo = document.getElementById('fileInfo');
+            const errorMessage = document.getElementById('errorMessage');
+            const warningMessage = document.getElementById('warningMessage');
+            const convertBtn = document.getElementById('convertBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultGif = document.getElementById('resultGif');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const widthInput = document.getElementById('widthInput');
+            const heightInput = document.getElementById('heightInput');
+            const fpsInput = document.getElementById('fpsInput');
+            const logsContainer = document.getElementById('logsContainer');
+            const logsContent = document.getElementById('logsContent');
+            const processSteps = document.getElementById('processSteps');
+            const palettePreview = document.getElementById('palettePreview');
+            const paletteImg = document.getElementById('paletteImg');
+            const paletteInfo = document.getElementById('paletteInfo');
+            const fsInfo = document.getElementById('fsInfo');
+
+            // FFmpeg初期化（真のシングルスレッド版：@ffmpeg/core-st使用）
+            async function initFFmpeg() {
+                if (!ffmpeg) {
+                    // mainName: 'main' が重要：シングルスレッドモードを指定
+                    ffmpeg = createFFmpeg({
+                        mainName: 'main',  // シングルスレッドモード必須パラメータ
+                        corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+                        log: true
+                    });
+                    
+                    ffmpeg.setLogger(({ type, message }) => {
+                        if (message) {
+                            console.log(message);
+                            appendLog(message);
+                        }
+                    });
+                    
+                    ffmpeg.setProgress(({ ratio }) => {
+                        const percent = Math.round(ratio * 100);
+                        updateProgress(percent, `変換中... ${percent}%`);
+                    });
+                }
+                
+                if (!ffmpeg.isLoaded()) {
+                    updateProgress(5, 'FFmpeg.wasm（シングルスレッド版）を読み込み中...');
+                    await ffmpeg.load();
+                    updateProgress(10, 'FFmpeg.wasm（シングルスレッド版）読み込み完了');
+                }
+            }
+
+            // ログ表示
+            function appendLog(message) {
+                logsContent.textContent += message + '\n';
+                logsContent.scrollTop = logsContent.scrollHeight;
+            }
+
+            // エラー表示
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                }, 5000);
+            }
+
+            // ステップ表示更新
+            function updateStep(stepNumber, status = 'active') {
+                for (let i = 1; i <= 4; i++) {
+                    const step = document.getElementById(`step${i}`);
+                    if (i < stepNumber) {
+                        step.className = 'step-item completed';
+                        step.querySelector('.step-icon').textContent = '✓';
+                    } else if (i === stepNumber) {
+                        step.className = `step-item ${status}`;
+                        if (status === 'completed') {
+                            step.querySelector('.step-icon').textContent = '✓';
+                        }
+                    } else {
+                        step.className = 'step-item';
+                        step.querySelector('.step-icon').textContent = i;
+                    }
+                }
+            }
+
+            // ファイルシステム情報表示
+            function showFSInfo(message) {
+                fsInfo.textContent = message;
+                fsInfo.style.display = 'block';
+            }
+
+            // 進捗表示
+            function updateProgress(percent, text) {
+                progressFill.style.width = percent + '%';
+                progressText.textContent = text;
+            }
+
+            // ファイル選択
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    selectFile(file);
+                }
+            });
+
+            // ドラッグ&ドロップ
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('video/')) {
+                    selectFile(file);
+                } else {
+                    showError('動画ファイルを選択してください');
+                }
+            });
+
+            // ファイル選択処理
+            function selectFile(file) {
+                const MAX_SIZE_MB = 50; // 50MB制限
+                const fileSizeMB = file.size / 1024 / 1024;
+                
+                if (fileSizeMB > MAX_SIZE_MB) {
+                    showError(`ファイルサイズが大きすぎます。${MAX_SIZE_MB}MB以下のファイルを選択してください。`);
+                    return;
+                }
+                
+                selectedFile = file;
+                fileInfo.textContent = `選択されたファイル: ${file.name} (${fileSizeMB.toFixed(2)} MB)`;
+                fileInfo.style.display = 'block';
+                
+                if (fileSizeMB > 10) {
+                    fileInfo.textContent += ' ⚠️ 大きいファイルのため、変換に時間がかかります';
+                }
+                
+                convertBtn.disabled = false;
+            }
+
+            // 変換処理
+            convertBtn.addEventListener('click', async () => {
+                if (!selectedFile) {
+                    showError('ファイルを選択してください');
+                    return;
+                }
+
+                if (isProcessing) {
+                    showError('現在変換処理中です。しばらくお待ちください。');
+                    return;
+                }
+                
+                isProcessing = true;
+                convertBtn.disabled = true;
+                progressContainer.style.display = 'block';
+                logsContainer.style.display = 'block';
+                logsContent.textContent = '';
+                resultContainer.style.display = 'none';
+                warningMessage.style.display = 'block';
+                processSteps.style.display = 'block';
+                palettePreview.style.display = 'none';
+                fsInfo.style.display = 'none';
+                
+                // ステップをリセット
+                for (let i = 1; i <= 4; i++) {
+                    updateStep(i, '');
+                }
+                
+                updateProgress(0, 'FFmpegを初期化中...');
+
+                try {
+                    // FFmpeg初期化
+                    await initFFmpeg();
+                    
+                    // ステップ1: ファイル読み込み
+                    updateStep(1, 'active');
+                    updateProgress(15, 'ファイルを読み込み中...');
+                    
+                    // ファイルをFFmpegのファイルシステムに書き込み
+                    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(selectedFile));
+                    updateStep(1, 'completed');
+                    
+                    updateProgress(25, '変換準備完了...');
+                    
+                    // サイズ設定
+                    const width = widthInput.value || '600';
+                    const height = heightInput.value || '-1';
+                    const fps = fpsInput.value || '12';
+                    const scale = `${width}:${height}`;
+                    
+                    // ステップ2: パレット生成とGIF変換
+                    updateStep(2, 'active');
+                    updateProgress(30, 'パレットを生成中...');
+                    
+                    // 1コマンドでGIFとパレットプレビューを同時生成
+                    await ffmpeg.run(
+                        '-i', 'input.mp4',
+                        '-filter_complex',
+                        `[0:v]fps=${fps},scale=${scale}:flags=lanczos,split[s0][s1];` +
+                        `[s0]palettegen[p];` +
+                        `[p]split[p1][p2];` +
+                        `[s1][p1]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle[gif];` +
+                        `[p2]scale=256:256:flags=neighbor[palette_preview]`,
+                        '-map', '[gif]', '-y', 'output.gif',
+                        '-map', '[palette_preview]', '-frames:v', '1', '-y', 'palette_preview.png'
+                    );
+                    
+                    updateStep(2, 'completed');
+                    
+                    // ファイルシステム情報表示
+                    try {
+                        const files = ffmpeg.FS('readdir', '/');
+                        const fileInfo = files.map(f => {
+                            try {
+                                const stat = ffmpeg.FS('stat', `/${f}`);
+                                return `${f} (${stat.size} bytes)`;
+                            } catch {
+                                return f;
+                            }
+                        }).filter(f => !f.startsWith('dev') && !f.startsWith('proc') && !f.startsWith('tmp') && !f.startsWith('home'));
+                        showFSInfo('ファイルシステム: ' + fileInfo.join(', '));
+                    } catch (e) {
+                        console.error('FS info error:', e);
+                    }
+                    
+                    // ステップ3: パレット表示
+                    updateStep(3, 'active');
+                    updateProgress(60, 'パレットを表示中...');
+                    
+                    // パレットプレビュー表示
+                    try {
+                        const paletteData = ffmpeg.FS('readFile', 'palette_preview.png');
+                        const paletteBlob = new Blob([paletteData.buffer], { type: 'image/png' });
+                        const paletteUrl = URL.createObjectURL(paletteBlob);
+                        paletteImg.src = paletteUrl;
+                        paletteInfo.textContent = `サイズ: ${paletteData.length} bytes | 256色パレット (16x16ピクセル)`;
+                        palettePreview.style.display = 'block';
+                    } catch (e) {
+                        console.error('Palette preview error:', e);
+                    }
+                    
+                    updateStep(3, 'completed');
+                    
+                    // ステップ4: GIF生成
+                    updateStep(4, 'active');
+                    updateProgress(80, 'GIFを準備中...');
+                    
+                    updateProgress(90, '結果を準備中...');
+                    
+                    // 結果を読み込み
+                    const data = ffmpeg.FS('readFile', 'output.gif');
+                    outputBlob = new Blob([data.buffer], { type: 'image/gif' });
+                    const url = URL.createObjectURL(outputBlob);
+                    
+                    // 結果表示
+                    resultGif.src = url;
+                    resultContainer.style.display = 'block';
+                    
+                    updateStep(4, 'completed');
+                    updateProgress(100, '完了！');
+                    
+                    // GIFファイル情報表示
+                    const gifSize = (data.length / 1024 / 1024).toFixed(2);
+                    console.log(`GIFサイズ: ${gifSize} MB`);
+                    
+                    // クリーンアップ
+                    try {
+                        ffmpeg.FS('unlink', 'input.mp4');
+                        ffmpeg.FS('unlink', 'palette_preview.png');
+                        ffmpeg.FS('unlink', 'output.gif');
+                    } catch (e) {
+                        console.log('Cleanup error:', e);
+                    }
+                    
+                } catch (error) {
+                    console.error('変換エラー:', error);
+                    showError('変換中にエラーが発生しました: ' + error.message);
+                } finally {
+                    isProcessing = false;
+                    convertBtn.disabled = false;
+                    warningMessage.style.display = 'none';
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                    }, 2000);
+                }
+            });
+
+            // ダウンロード
+            downloadBtn.addEventListener('click', () => {
+                if (outputBlob) {
+                    const url = URL.createObjectURL(outputBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'output.gif';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+            });
+
+            // リセット
+            resetBtn.addEventListener('click', () => {
+                selectedFile = null;
+                outputBlob = null;
+                fileInput.value = '';
+                fileInfo.style.display = 'none';
+                resultContainer.style.display = 'none';
+                progressContainer.style.display = 'none';
+                logsContainer.style.display = 'none';
+                warningMessage.style.display = 'none';
+                processSteps.style.display = 'none';
+                palettePreview.style.display = 'none';
+                fsInfo.style.display = 'none';
+                convertBtn.disabled = true;
+                widthInput.value = '600';
+                heightInput.value = '-1';
+                fpsInput.value = '12';
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -271,6 +271,31 @@
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
+            position: relative;
+            padding-right: 40px;
+        }
+        
+        .error-message .error-close {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 20px;
+            color: #cc0000;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .error-message .error-close:hover {
+            opacity: 1;
+        }
+        
+        .error-message .error-code {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 5px;
+            opacity: 0.8;
         }
 
         .warning-message {
@@ -450,7 +475,11 @@
         </div>
 
         <div class="file-info" id="fileInfo"></div>
-        <div class="error-message" id="errorMessage"></div>
+        <div class="error-message" id="errorMessage">
+            <div id="errorText"></div>
+            <div class="error-code" id="errorCode"></div>
+            <span class="error-close" onclick="closeError()">×</span>
+        </div>
 
         <div class="settings">
             <div class="size-mode-selector">
@@ -623,13 +652,37 @@
             }
 
             // エラー表示
-            function showError(message) {
-                errorMessage.textContent = message;
+            function showError(message, errorObj = null) {
+                const errorText = document.getElementById('errorText');
+                const errorCode = document.getElementById('errorCode');
+                
+                errorText.textContent = 'エラーが発生しました。' + message;
+                
+                if (errorObj) {
+                    // エラーコードや詳細情報を表示
+                    const errorInfo = [];
+                    if (errorObj.code) errorInfo.push(`Code: ${errorObj.code}`);
+                    if (errorObj.name) errorInfo.push(`Type: ${errorObj.name}`);
+                    if (errorObj.message && errorObj.message !== message) {
+                        errorInfo.push(`Details: ${errorObj.message}`);
+                    }
+                    errorCode.textContent = errorInfo.length > 0 ? errorInfo.join(' | ') : '';
+                    errorCode.style.display = errorInfo.length > 0 ? 'block' : 'none';
+                } else {
+                    errorCode.style.display = 'none';
+                }
+                
                 errorMessage.style.display = 'block';
-                setTimeout(() => {
-                    errorMessage.style.display = 'none';
-                }, 5000);
+                // 自動で消さない
             }
+            
+            // エラーを閉じる
+            function closeError() {
+                errorMessage.style.display = 'none';
+            }
+            
+            // グローバルに公開（onclick用）
+            window.closeError = closeError;
 
             // ステップ表示更新
             function updateStep(stepNumber, status = 'active') {
@@ -779,7 +832,7 @@
                 const fileSizeMB = file.size / 1024 / 1024;
                 
                 if (fileSizeMB > MAX_SIZE_MB) {
-                    showError(`ファイルサイズが大きすぎます。${MAX_SIZE_MB}MB以下のファイルを選択してください。`);
+                    showError(`ファイルサイズが大きすぎます。${MAX_SIZE_MB}MB以下のファイルを選択してください。`, {code: 'FILE_TOO_LARGE', name: 'FileSizeError'});
                     return;
                 }
                 
@@ -851,12 +904,12 @@
             // 変換処理
             convertBtn.addEventListener('click', async () => {
                 if (!selectedFile) {
-                    showError('ファイルを選択してください');
+                    showError('ファイルを選択してください。', {code: 'NO_FILE_SELECTED', name: 'ValidationError'});
                     return;
                 }
 
                 if (isProcessing) {
-                    showError('現在変換処理中です。しばらくお待ちください。');
+                    showError('現在変換処理中です。しばらくお待ちください。', {code: 'PROCESS_BUSY', name: 'ProcessingError'});
                     return;
                 }
                 
@@ -993,7 +1046,7 @@
                     
                 } catch (error) {
                     console.error('変換エラー:', error);
-                    showError('変換中にエラーが発生しました: ' + error.message);
+                    showError('変換処理中に問題が発生しました。', error);
                 } finally {
                     isProcessing = false;
                     convertBtn.disabled = false;

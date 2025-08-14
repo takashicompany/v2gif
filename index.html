@@ -425,8 +425,8 @@
             </div>
             <div class="setting-group">
                 <label for="fpsInput">FPS (フレームレート)</label>
-                <input type="number" id="fpsInput" value="12" min="1" max="30" placeholder="例: 12">
-                <span class="hint">推奨: 10-15</span>
+                <input type="number" id="fpsInput" value="30" min="1" max="60" placeholder="例: 30">
+                <span class="hint">デフォルト: 30</span>
             </div>
         </div>
 
@@ -637,7 +637,7 @@
             });
 
             // ファイル選択処理
-            function selectFile(file) {
+            async function selectFile(file) {
                 const MAX_SIZE_MB = 50; // 50MB制限
                 const fileSizeMB = file.size / 1024 / 1024;
                 
@@ -652,6 +652,52 @@
                 
                 if (fileSizeMB > 10) {
                     fileInfo.textContent += ' ⚠️ 大きいファイルのため、変換に時間がかかります';
+                }
+                
+                // 動画のメタデータを取得してサイズを自動設定
+                try {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    
+                    await new Promise((resolve, reject) => {
+                        video.onloadedmetadata = () => {
+                            // 動画の実際のサイズを取得
+                            const videoWidth = video.videoWidth;
+                            const videoHeight = video.videoHeight;
+                            
+                            // 入力フィールドに設定
+                            widthInput.value = videoWidth.toString();
+                            heightInput.value = videoHeight.toString();
+                            
+                            fileInfo.textContent += ` | サイズ: ${videoWidth}x${videoHeight}`;
+                            
+                            resolve();
+                        };
+                        
+                        video.onerror = () => {
+                            // エラーの場合はデフォルト値を使用
+                            console.log('メタデータ取得失敗、デフォルト値を使用');
+                            widthInput.value = '600';
+                            heightInput.value = '-1';
+                            resolve();
+                        };
+                        
+                        // 動画ファイルのURLを作成
+                        const url = URL.createObjectURL(file);
+                        video.src = url;
+                        
+                        // タイムアウト設定
+                        setTimeout(() => {
+                            URL.revokeObjectURL(url);
+                            resolve();
+                        }, 5000);
+                    });
+                    
+                } catch (error) {
+                    console.error('メタデータ取得エラー:', error);
+                    // エラーの場合はデフォルト値
+                    widthInput.value = '600';
+                    heightInput.value = '-1';
                 }
                 
                 convertBtn.disabled = false;
@@ -704,7 +750,7 @@
                     // サイズ設定
                     const width = widthInput.value || '600';
                     const height = heightInput.value || '-1';
-                    const fps = fpsInput.value || '12';
+                    const fps = fpsInput.value || '30';
                     const scale = `${width}:${height}`;
                     
                     // ステップ2: パレット生成とGIF変換
@@ -832,7 +878,7 @@
                 convertBtn.disabled = true;
                 widthInput.value = '600';
                 heightInput.value = '-1';
-                fpsInput.value = '12';
+                fpsInput.value = '30';
             });
         })();
     </script>

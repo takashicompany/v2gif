@@ -775,6 +775,7 @@
 
     <!-- FFmpeg.wasm CDN（シングルスレッド版 - バージョン統一） -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js"></script>
+    <script src="converter.js"></script>
     <script>
         (async () => {
             const { createFFmpeg, fetchFile } = FFmpeg;
@@ -1725,6 +1726,30 @@
                 updateSizeMode();
             });
         })();
+
+        // Service Worker登録 & API メッセージハンドラ
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then((reg) => {
+                console.log('V2GIF Service Worker registered:', reg.scope);
+            }).catch((err) => {
+                console.error('Service Worker registration failed:', err);
+            });
+
+            // Service Workerからの変換リクエストを処理
+            navigator.serviceWorker.addEventListener('message', async (event) => {
+                if (event.data.type !== 'v2gif-convert') return;
+
+                const port = event.ports[0];
+                try {
+                    const converter = new V2GIFConverter();
+                    converter.onLog = (msg) => console.log('[API]', msg);
+                    const gif = await converter.convert(event.data.video, event.data.params);
+                    port.postMessage({ gif });
+                } catch (error) {
+                    port.postMessage({ error: error.message });
+                }
+            });
+        }
     </script>
 </body>
 </html>

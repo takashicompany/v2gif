@@ -773,10 +773,46 @@
         </div>
     </div>
 
-    <!-- FFmpeg.wasm CDN（シングルスレッド版 - バージョン統一） -->
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js"></script>
     <script>
+        // FFmpeg.wasmライブラリのロード（ローカル優先、CDNフォールバック）
         (async () => {
+            // スクリプトを動的にロードする関数
+            function loadScript(src) {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = src;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+            
+            // FFmpeg.jsライブラリのロード
+            let librarySource = 'cdn'; // デフォルト
+            try {
+                // まずローカルファイルを直接読み込み試行
+                await loadScript('./ffmpeg.min.js');
+                librarySource = 'local';
+                console.log('FFmpeg.js loaded from local file');
+            } catch (localError) {
+                // ローカルファイルの読み込みに失敗した場合、CDNから読み込み
+                console.log('Local ffmpeg.min.js not found, trying CDN...');
+                try {
+                    await loadScript('https://unpkg.com/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js');
+                    librarySource = 'cdn';
+                    console.log('FFmpeg.js loaded from CDN');
+                } catch (cdnError) {
+                    console.error('Failed to load FFmpeg.js from both local and CDN:', cdnError);
+                    alert('FFmpegライブラリの読み込みに失敗しました。インターネット接続を確認してください。');
+                    return;
+                }
+            }
+            
+            // ライブラリの読み込み元を記録（後で変換ログに表示）
+            window.ffmpegLibrarySource = librarySource;
+            
+            // 以下、元のコード
+            (async () => {
             const { createFFmpeg, fetchFile } = FFmpeg;
             
             let ffmpeg = null;
@@ -839,10 +875,14 @@
             // FFmpeg初期化（真のシングルスレッド版：@ffmpeg/core-st使用）
             async function initFFmpeg() {
                 if (!ffmpeg) {
+                    // まずローカルのコアファイルで試す
+                    let corePath = './ffmpeg-core.js';
+                    let coreSource = 'ローカルファイル';
+                    
                     // mainName: 'main' が重要：シングルスレッドモードを指定
                     ffmpeg = createFFmpeg({
                         mainName: 'main',  // シングルスレッドモード必須パラメータ
-                        corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+                        corePath: corePath,
                         log: true
                     });
                     
@@ -869,8 +909,49 @@
                 
                 if (!ffmpeg.isLoaded()) {
                     updateProgress(5, 'FFmpeg.wasm（シングルスレッド版）を読み込み中...');
-                    await ffmpeg.load();
-                    updateProgress(10, 'FFmpeg.wasm（シングルスレッド版）読み込み完了');
+                    try {
+                        await ffmpeg.load();
+                        // ローカルファイルから正常に読み込めた
+                        window.ffmpegCoreSource = 'ローカルファイル';
+                        console.log('FFmpeg core loaded from local file');
+                        updateProgress(10, 'FFmpeg.wasm（シングルスレッド版）読み込み完了');
+                    } catch (loadError) {
+                        // ローカル読み込みに失敗、CDNにフォールバック
+                        console.log('Local ffmpeg-core failed, trying CDN...', loadError);
+                        
+                        // CDNパスで再作成
+                        ffmpeg = createFFmpeg({
+                            mainName: 'main',
+                            corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+                            log: true
+                        });
+                        
+                        ffmpeg.setLogger(({ type, message }) => {
+                            if (message) {
+                                console.log(message);
+                                appendLog(message);
+                                
+                                // エラーメッセージを検出
+                                if (message.includes('Out of memory') || 
+                                    message.includes('Error while filtering') ||
+                                    message.includes('Conversion failed') ||
+                                    message.includes('failed to execute')) {
+                                    ffmpegError = message;
+                                }
+                            }
+                        });
+                        
+                        ffmpeg.setProgress(({ ratio }) => {
+                            const percent = Math.round(ratio * 100);
+                            updateProgress(percent, `変換中... ${percent}%`);
+                        });
+                        
+                        // CDNから読み込み
+                        await ffmpeg.load();
+                        window.ffmpegCoreSource = 'CDN';
+                        console.log('FFmpeg core loaded from CDN');
+                        updateProgress(10, 'FFmpeg.wasm（シングルスレッド版）読み込み完了（CDN）');
+                    }
                 }
             }
 
@@ -1469,6 +1550,13 @@
                     // FFmpeg初期化
                     await initFFmpeg();
                     
+                    // ライブラリの読み込み元を変換ログに表示
+                    const libraryInfo = `🔧 FFmpegライブラリ読み込み元:\n` +
+                        `  - FFmpeg.js: ${window.ffmpegLibrarySource === 'local' ? 'ローカルファイル' : 'CDN (unpkg.com)'}\n` +
+                        `  - FFmpeg Core: ${window.ffmpegCoreSource || 'CDN'}\n` +
+                        `----------------------------------------\n`;
+                    appendLog(libraryInfo);
+                    
                     // ステップ1: ファイル読み込み
                     updateStep(1, 'active');
                     updateProgress(15, 'ファイルを読み込み中...');
@@ -1724,7 +1812,8 @@
                 videoDurationHint.textContent = '動画の長さ: 未確認';
                 updateSizeMode();
             });
-        })();
+            })(); // 内側のasync関数終了
+        })(); // 外側のasync関数終了
     </script>
 </body>
 </html>
